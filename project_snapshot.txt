@@ -1,0 +1,262 @@
+006_N-gramm's_Frequency_Analizator/
+    ├── .gitignore
+        [meta] size=60B | modified=2026-09-12 11:11
+        --- НАЧАЛО ---
+        | __pycache__/
+        | .pytest_cache/
+        | .venv/
+        | .vscode/
+        | data/
+        | *.log
+        --- КОНЕЦ ---
+    ├── pyproject.toml
+        [meta] size=205B | modified=2026-04-20 13:07
+        --- НАЧАЛО ---
+        | [tool.pytest.ini_options]
+        | minversion = "6.0"
+        | testpaths = ["tests"]
+        | python_files = ["test_*.py", "*_test.py"]
+        | python_functions = ["test_*"]
+        | addopts = [
+        |   "-vv",				   
+        |   "--import-mode=importlib" 
+        | ]
+        --- КОНЕЦ ---
+    ├── readme.md
+        [meta] size=1.7KB | modified=2026-01-01 14:45
+        --- НАЧАЛО ---
+        | # N-gramm's Frequency Analizator
+        | 
+        | N-gramm's Frequency Analizator - программа, которая позволяет сделать статический анализ частотности N-грамм на основе представляемого текста. Учитывается частота относительно уникальных слов, с упором на составления Буквенно-Образные Коды|БОК.
+        | 
+        | ## Функции
+        | - Анализировать уникальные слова(в идеале уникальность на основе лемм) и составлять таблицу частотности N-грамм.
+        | - Выбирать оптимальный набор N-грамм для составления БОК(два режима: gsc(жадный алгоритм), bpe(токенизация по частоте))
+        | - работа через изменение главного файла, вывод в консоль
+        | 
+        | ## Технологии
+        | - Language: Python 3.12
+        | - Frameworks: -
+        | 
+        | ## Использование
+        | ### Установка
+        | 1. Клонировать репозиторий: `git clone ...`
+        | 
+        | ### Использование
+        | 1. Перейти в папку `src`
+        | 2. Закинуть файл в проект и изменить строку 5 в `main.py`
+        | 3. Запустить командой `python main.py`
+        | 
+        | ## План разработки(Roadmap)
+        | - [ ] сделать GUI для выбора файла алгоритма и его возможные настройки
+        | - [ ] сделать экспорт в таблицы частот N-грамм в процентах.
+        | 
+        | ## Статус
+        | MSP(Минимально жизнеспособный продукт)
+        --- КОНЕЦ ---
+    app/
+        ├── domains.py
+            [meta] size=2.0KB | modified=2026-04-20 13:46
+            --- НАЧАЛО ---
+            | from dataclasses import dataclass, field
+            | 
+            | @dataclass(frozen=True)
+            | class WordItem:
+            |     """Сontainer for a word.
+            | 
+            |     Attributes:
+            |         text: The word(must not be empty).
+            |         weight: Importance weight (must be >= 0).
+            |     
+            |     Raises:
+            |         ValueError: If text is empty or weight is negative.
+            |     """
+            |     text: str
+            |     weight: float
+            | 
+            |     def __post_init__(self):
+            |         if not self.text.strip():
+            |             raise ValueError("text must not be empty or whitespace")
+            |         if self.weight < 0:
+            |             raise ValueError("weight must be >= 0")
+            |     
+            |     @property
+            |     def length(self)->int:
+            |         return len(self.text)
+            | 
+            | @dataclass(frozen=True)
+            | class OptimizerConfig:
+            |     """Configuration for the optimizer.
+            | 
+            |     Attributes:
+            |         max_vocab_size: Maximum allowed vocabulary size (must be > 0).
+            |         min_word_length: Minimum length of words to consider (must be > 0).
+            | 
+            |     Raises:
+            |         ValueError: If max_vocab_size <= 0 or min_word_length <= 0.
+            |     """
+            |     max_vocab_size: int
+            |     min_word_length: int = 5
+            | 
+            |     def __post_init__(self):
+            |         if self.max_vocab_size <= 0:
+            |             raise ValueError("max_vocab_size must be > 0")
+            |         if self.min_word_length <= 0:
+            |             raise ValueError("min_word_length must be > 0")
+            | 
+            | @dataclass(frozen=True)
+            | class NGramVocab:
+            |     """NGram vocabulary container.
+            | 
+            |     Attributes:
+            |         max_size: Maximum vocabulary size (must be > 0).
+            |         grams: Set of n-grams (must not contain empty strings).
+            | 
+            |     Raises:
+            |         ValueError: If max_size <= 0 or grams contain empty strings.
+            |     """
+            |     max_size: int
+            |     grams: set[str]
+            |     
+            |     def __post_init__(self):
+            |         if self.max_size <= 0:
+            |             raise ValueError("max_size must be > 0")
+            |         if len(self.grams) > self.max_size:
+            |             raise ValueError("grams size exceeds max_size")
+            |         if any(not gram.strip() for gram in self.grams):
+            |             raise ValueError("grams must not contain empty strings")
+            --- КОНЕЦ ---
+        ├── interface.py
+            [meta] size=417B | modified=2026-04-20 11:50
+            --- НАЧАЛО ---
+            | from abc import ABC, abstractmethod
+            | from domains import WordItem
+            | 
+            | class ITextPreprocessor(ABC):
+            |     @abstractmethod
+            |     def preprocess(self, raw_lines: list[str]) -> list[WordItem]:
+            |         """Preprocess raw words and prepare data.
+            | 
+            |         Args:
+            |             raw_lines (list[str]): word list for preprocess.
+            | 
+            |         Returns:
+            |             list[WordItem]: list of word dataclasses.
+            |         """
+            |         ...
+            --- КОНЕЦ ---
+    tests/
+        ├── test_domains.py
+            [meta] size=2.5KB | modified=2026-04-20 13:44
+            --- НАЧАЛО ---
+            | import pytest
+            | from app.domains import WordItem, OptimizerConfig, NGramVocab
+            | from dataclasses import FrozenInstanceError
+            | 
+            | 
+            | # --- WordItem ---
+            | 
+            | @pytest.mark.parametrize("word, weight", [
+            |     ("hello", 0),
+            |     ("Def", 1.2),
+            | ])
+            | def test_word_item_valid(word, weight):
+            |     item = WordItem(word, weight)
+            |     assert item.text == word
+            |     assert item.weight == weight
+            |     assert item.length == len(word)
+            | 
+            | 
+            | @pytest.mark.parametrize("word, weight", [
+            |     ("", 0),
+            |     ("   ", 1.2),
+            | ])
+            | def test_word_item_empty(word, weight):
+            |     with pytest.raises(ValueError, match="empty"):
+            |         WordItem(word, weight)
+            | 
+            | 
+            | @pytest.mark.parametrize("word, weight", [
+            |     ("hello", -2),
+            |     ("22", -1),
+            | ])
+            | def test_word_item_negative_weight(word, weight):
+            |     with pytest.raises(ValueError, match=">= 0"):
+            |         WordItem(word, weight)
+            | 
+            | 
+            | # --- OptimizerConfig ---
+            | 
+            | @pytest.mark.parametrize("max_vocab_size, min_word_length", [
+            |     (3, 5),
+            |     (1_000_000, 10),
+            | ])
+            | def test_optimizer_config_valid(max_vocab_size, min_word_length):
+            |     config = OptimizerConfig(max_vocab_size, min_word_length)
+            |     assert config.max_vocab_size == max_vocab_size
+            |     assert config.min_word_length == min_word_length
+            | 
+            | 
+            | @pytest.mark.parametrize("max_vocab_size, min_word_length", [
+            |     (0, 0),
+            |     (100, -1),
+            |     (-1, 232),
+            | ])
+            | def test_optimizer_config_invalid(max_vocab_size, min_word_length):
+            |     with pytest.raises(ValueError, match="must be"):
+            |         OptimizerConfig(max_vocab_size, min_word_length)
+            | 
+            | 
+            | # ---Immutebilitty---
+            | 
+            | def test_word_item():
+            |     item = WordItem("_", 1)
+            |     with pytest.raises(FrozenInstanceError):
+            |         item.text = "232"    
+            |     with pytest.raises(FrozenInstanceError):
+            |         item.weight = 23
+            | 
+            | 
+            | def test_optimizer_config():
+            |     config = OptimizerConfig(1, 1)
+            |     with pytest.raises(FrozenInstanceError):
+            |         config.max_vocab_size = 2   
+            |     with pytest.raises(FrozenInstanceError):
+            |         config.min_word_length = 2
+            | 
+            | 
+            | # ---NGramVocab---
+            | 
+            | def test_ngram_vocab_success():
+            |     vocab = NGramVocab(
+            |         max_size=5,
+            |         grams={"ab", "bc", "cd"}
+            |     )
+            |     assert vocab.max_size == 5
+            |     assert vocab.grams == {"ab", "bc", "cd"}
+            | 
+            | 
+            | def test_ngram_vocab_size_exceeds_max():
+            |     with pytest.raises(ValueError, match="exceeds max_size"):
+            |         NGramVocab(
+            |             max_size=2,
+            |             grams={"ab", "bc", "cd"}
+            |         )
+            | 
+            | 
+            | def test_ngram_vocab_empty_string():
+            |     with pytest.raises(ValueError, match="empty strings"):
+            |         NGramVocab(
+            |             max_size=5,
+            |             grams={"ab", "", "cd"}
+            |         )
+            --- КОНЕЦ ---
+
+==================================================
+СВОДКА СНАПШОТА
+Дата генерации: 2026-09-12 11:11:49
+Файлов включено: 6
+Файлов исключено как бинарные: 0
+Файлов исключено как дефектные (плохая кодировка): 0
+Суммарный размер содержимого: 6.9KB
+==================================================

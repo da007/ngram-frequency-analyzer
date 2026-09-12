@@ -1,45 +1,11 @@
-# --- ПИТОНОВСКИЙ "МУСОР" ---
-# Кэш компиляции (ускоряет запуск, но в Git не нужен)
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# --- ВИРТУАЛЬНЫЕ ОКРУЖЕНИЯ ---
-# Папки, куда ставятся библиотеки (pip install)
-venv/
 .venv/
-env/
-ENV/
-bin/
-lib/
-
-# --- СЕКРЕТЫ И НАСТРОЙКИ (ВАЖНО!) ---
-# Файлы с паролями и API-ключами
 .env
-.flaskenv
-
-# --- НАСТРОЙКИ РЕДАКТОРОВ ---
-# PyCharm
-.idea/
-# VS Code
-.vscode/
-*.code-workspace
-
-# --- ТЕСТЫ И ОТЧЕТЫ ---
 .pytest_cache/
-.coverage
-htmlcov/
-nosetests.xml
-coverage.xml
-*.cover
-
-# --- БАЗЫ ДАННЫХ (если используешь SQLite локально) ---
-*.db
-*.sqlite3
-
-# --- СИСТЕМНЫЕ ФАЙЛЫ ---
-.DS_Store (для macOS)
-Thumbs.db (для Windows)
-
-# --- ЛОГИ ---
+.vscode/
+.idea/
 *.log
+data/
